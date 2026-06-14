@@ -2,11 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>tap or flop 💀</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    html, body {
+      position: fixed;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
     body {
       background: #0d0d0d;
       color: #fff;
@@ -15,11 +20,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      overflow: hidden;
       user-select: none;
+      -webkit-user-select: none;
     }
-
     h1 {
       font-size: 2.2rem;
       font-weight: 900;
@@ -29,7 +32,6 @@
       -webkit-text-fill-color: transparent;
       margin-bottom: 6px;
     }
-
     #subtitle {
       font-size: 0.85rem;
       color: #aaa;
@@ -37,7 +39,6 @@
       letter-spacing: 2px;
       text-transform: uppercase;
     }
-
     #arena {
       width: 340px;
       height: 340px;
@@ -48,7 +49,6 @@
       overflow: hidden;
       box-shadow: 0 0 40px #ff6ef722;
     }
-
     #dot {
       width: 64px;
       height: 64px;
@@ -61,33 +61,36 @@
       font-size: 1.6rem;
       transition: transform 0.1s;
       box-shadow: 0 0 20px currentColor;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
     }
-
     #dot:active { transform: scale(0.85); }
-
     #stats {
       display: flex;
       gap: 32px;
       margin-top: 24px;
     }
-
-    .stat {
-      text-align: center;
-    }
-
+    .stat { text-align: center; }
     .stat-label {
       font-size: 0.7rem;
       color: #666;
       text-transform: uppercase;
       letter-spacing: 2px;
     }
-
     .stat-value {
       font-size: 2rem;
       font-weight: 900;
       color: #fff;
     }
-
+    #lives {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      font-size: 1.3rem;
+    }
+    .life { transition: opacity 0.3s; }
+    .life.lost { opacity: 0.15; }
     #timer-bar-wrap {
       width: 340px;
       height: 6px;
@@ -96,7 +99,6 @@
       margin-top: 18px;
       overflow: hidden;
     }
-
     #timer-bar {
       height: 100%;
       width: 100%;
@@ -104,7 +106,6 @@
       transition: width linear;
       background: linear-gradient(90deg, #ff6ef7, #6ef7ff);
     }
-
     #message {
       margin-top: 20px;
       font-size: 1.1rem;
@@ -112,7 +113,6 @@
       min-height: 28px;
       letter-spacing: 1px;
     }
-
     #start-btn {
       margin-top: 22px;
       padding: 12px 36px;
@@ -125,11 +125,10 @@
       cursor: pointer;
       letter-spacing: 1px;
       transition: transform 0.15s, opacity 0.15s;
+      touch-action: manipulation;
     }
-
     #start-btn:hover { transform: scale(1.05); }
     #start-btn:active { transform: scale(0.95); opacity: 0.85; }
-
     #streak-badge {
       position: fixed;
       top: 18px;
@@ -143,21 +142,47 @@
       display: none;
       letter-spacing: 1px;
     }
-
-    .pop {
-      animation: pop 0.25s ease;
+    #gameover {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #0d0d0ddd;
+      border-radius: 22px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      z-index: 10;
     }
-
+    #gameover.show { display: flex; }
+    #gameover h2 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, #ff6ef7, #6ef7ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    #gameover .go-score { font-size: 1rem; color: #aaa; }
+    #gameover .go-best { font-size: 1rem; color: #f7ff6e; font-weight: 700; }
+    #share-btn {
+      margin-top: 8px;
+      padding: 10px 28px;
+      background: linear-gradient(90deg, #f7ff6e, #6ef7ff);
+      border: none;
+      border-radius: 99px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #000;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .pop { animation: pop 0.25s ease; }
     @keyframes pop {
       0%   { transform: scale(1); }
       50%  { transform: scale(1.4); }
       100% { transform: scale(1); }
     }
-
-    .miss-flash {
-      animation: missflash 0.3s ease;
-    }
-
+    .miss-flash { animation: missflash 0.3s ease; }
     @keyframes missflash {
       0%   { background: #0d0d0d; }
       50%  { background: #3a0000; }
@@ -166,12 +191,17 @@
   </style>
 </head>
 <body>
-
   <h1>tap or flop 💀</h1>
   <div id="subtitle">reaction speed game</div>
 
   <div id="arena">
     <div id="dot" style="display:none"></div>
+    <div id="gameover">
+      <h2>game over 💀</h2>
+      <div class="go-score" id="go-score"></div>
+      <div class="go-best" id="go-best"></div>
+      <button id="share-btn">share score 🔗</button>
+    </div>
   </div>
 
   <div id="timer-bar-wrap">
@@ -193,73 +223,128 @@
     </div>
   </div>
 
+  <div id="lives">
+    <span class="life" id="life1">❤️</span>
+    <span class="life" id="life2">❤️</span>
+    <span class="life" id="life3">❤️</span>
+  </div>
+
   <div id="message"></div>
   <button id="start-btn">let's go 🚀</button>
-  <div id="streak-badge" id="streak-badge"></div>
+  <div id="streak-badge"></div>
 
 <script>
-  const dot = document.getElementById('dot');
-  const arena = document.getElementById('arena');
-  const scoreEl = document.getElementById('score');
-  const bestEl = document.getElementById('best');
-  const streakEl = document.getElementById('streak');
-  const msgEl = document.getElementById('message');
-  const startBtn = document.getElementById('start-btn');
-  const timerBar = document.getElementById('timer-bar');
+  const dot         = document.getElementById('dot');
+  const arena       = document.getElementById('arena');
+  const scoreEl     = document.getElementById('score');
+  const bestEl      = document.getElementById('best');
+  const streakEl    = document.getElementById('streak');
+  const msgEl       = document.getElementById('message');
+  const startBtn    = document.getElementById('start-btn');
+  const timerBar    = document.getElementById('timer-bar');
   const streakBadge = document.getElementById('streak-badge');
+  const gameoverEl  = document.getElementById('gameover');
+  const goScore     = document.getElementById('go-score');
+  const goBest      = document.getElementById('go-best');
+  const shareBtn    = document.getElementById('share-btn');
+  const lifeEls     = [document.getElementById('life1'), document.getElementById('life2'), document.getElementById('life3')];
 
-  const emojis = ['🎯','⚡','💥','🔥','✨','🫧','👾','💎','🍄','🌀'];
-  const colors = ['#ff6ef7','#6ef7ff','#f7ff6e','#ff9f6e','#6eff9f','#b06eff'];
-  const hitMessages = ['slay 💅','no cap 🔥','ate that 🍽️','period.','understood the assignment','ok bestie','W hit ✅','lowkey goated'];
+  const emojis       = ['🎯','⚡','💥','🔥','✨','🫧','👾','💎','🍄','🌀'];
+  const colors       = ['#ff6ef7','#6ef7ff','#f7ff6e','#ff9f6e','#6eff9f','#b06eff'];
+  const hitMessages  = ['slay 💅','no cap 🔥','ate that 🍽️','period.','understood the assignment','ok bestie','W hit ✅','lowkey goated'];
   const missMessages = ['bruh 💀','not you flopping','ratio ❌','skill issue fr','down bad rn','L moment'];
 
-  let score = 0, best = 0, streak = 0, gameActive = false;
-  let dotTimeout, missTimeout, timerInterval;
+  let score = 0, streak = 0, lives = 3, gameActive = false;
+  let dotTimeout, missTimeout;
   let windowMs = 1100;
+
+  let best = parseInt(localStorage.getItem('tof_best') || '0');
+  bestEl.textContent = best;
 
   function getRandom(min, max) { return Math.floor(Math.random() * (max - min)) + min; }
 
+  function updateLives() {
+    lifeEls.forEach((el, i) => el.classList.toggle('lost', i >= lives));
+  }
+
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  function playHit() {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(520, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(820, ctx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    o.start(); o.stop(ctx.currentTime + 0.15);
+  }
+  function playMiss() {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(220, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.2);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    o.start(); o.stop(ctx.currentTime + 0.2);
+  }
+
   function placeDot() {
     if (!gameActive) return;
-
     const maxX = arena.offsetWidth - 70;
     const maxY = arena.offsetHeight - 70;
-    const x = getRandom(8, maxX);
-    const y = getRandom(8, maxY);
-    const emoji = emojis[getRandom(0, emojis.length)];
+    dot.style.left  = getRandom(8, maxX) + 'px';
+    dot.style.top   = getRandom(8, maxY) + 'px';
     const color = colors[getRandom(0, colors.length)];
-
-    dot.style.left = x + 'px';
-    dot.style.top  = y + 'px';
     dot.style.background = color + '22';
-    dot.style.border = `3px solid ${color}`;
-    dot.style.color = color;
-    dot.style.display = 'flex';
-    dot.textContent = emoji;
-
-    // timer bar
+    dot.style.border     = `3px solid ${color}`;
+    dot.style.color      = color;
+    dot.style.display    = 'flex';
+    dot.textContent      = emojis[getRandom(0, emojis.length)];
     timerBar.style.transition = 'none';
     timerBar.style.width = '100%';
     setTimeout(() => {
       timerBar.style.transition = `width ${windowMs}ms linear`;
       timerBar.style.width = '0%';
     }, 20);
-
-    // miss if not tapped in time
     missTimeout = setTimeout(() => {
       if (!gameActive) return;
       dot.style.display = 'none';
-      streak = 0;
-      streakEl.textContent = streak;
-      streakBadge.style.display = 'none';
-      const msg = missMessages[getRandom(0, missMessages.length)];
-      flashMsg(msg, '#ff6e6e');
-      document.body.classList.add('miss-flash');
-      setTimeout(() => document.body.classList.remove('miss-flash'), 300);
-      // speed up slightly on miss
-      windowMs = Math.max(500, windowMs - 20);
-      dotTimeout = setTimeout(placeDot, getRandom(400, 900));
+      handleMiss();
     }, windowMs);
+  }
+
+  function handleMiss() {
+    streak = 0;
+    streakEl.textContent = 0;
+    streakBadge.style.display = 'none';
+    lives--;
+    updateLives();
+    playMiss();
+    flashMsg(missMessages[getRandom(0, missMessages.length)], '#ff6e6e');
+    document.body.classList.add('miss-flash');
+    setTimeout(() => document.body.classList.remove('miss-flash'), 300);
+    if (lives <= 0) { endGame(); return; }
+    windowMs = Math.max(500, windowMs - 20);
+    dotTimeout = setTimeout(placeDot, getRandom(400, 900));
+  }
+
+  function endGame() {
+    gameActive = false;
+    dot.style.display = 'none';
+    clearTimeout(dotTimeout);
+    clearTimeout(missTimeout);
+    timerBar.style.width = '0%';
+    if (score > best) {
+      best = score;
+      localStorage.setItem('tof_best', best);
+      bestEl.textContent = best;
+    }
+    goScore.textContent = `your score: ${score}`;
+    goBest.textContent  = `best ever: ${best} 🏆`;
+    gameoverEl.classList.add('show');
+    startBtn.textContent = 'play again 🔁';
   }
 
   function flashMsg(text, color) {
@@ -269,58 +354,68 @@
     msgEl._t = setTimeout(() => { msgEl.textContent = ''; }, 1200);
   }
 
-  dot.addEventListener('click', () => {
+  function onDotTap(e) {
+    e.preventDefault();
+    e.stopPropagation();
     if (!gameActive) return;
     clearTimeout(missTimeout);
     clearTimeout(dotTimeout);
-
     score++;
     streak++;
     scoreEl.textContent = score;
     streakEl.textContent = streak;
-
-    if (score > best) { best = score; bestEl.textContent = best; }
-
+    if (score > best) { best = score; bestEl.textContent = best; localStorage.setItem('tof_best', best); }
     dot.classList.add('pop');
     setTimeout(() => dot.classList.remove('pop'), 250);
     dot.style.display = 'none';
-
-    // streak badge
+    playHit();
     if (streak >= 3) {
       streakBadge.textContent = `🔥 ${streak} streak`;
       streakBadge.style.display = 'block';
     }
-
-    const msg = hitMessages[getRandom(0, hitMessages.length)];
-    flashMsg(msg, '#6ef7ff');
-
-    // speed up on hit
+    flashMsg(hitMessages[getRandom(0, hitMessages.length)], '#6ef7ff');
     windowMs = Math.max(480, windowMs - 25);
+    dotTimeout = setTimeout(placeDot, getRandom(250, Math.max(300, 700 - (score * 5))));
+  }
 
-    dotTimeout = setTimeout(placeDot, getRandom(250, 700));
-  });
+  dot.addEventListener('touchstart', onDotTap, { passive: false });
+  dot.addEventListener('click', onDotTap);
 
-  // clicking arena background = miss
-  arena.addEventListener('click', (e) => {
-    if (e.target !== dot && gameActive) {
-      streak = 0;
-      streakEl.textContent = 0;
-      streakBadge.style.display = 'none';
-      flashMsg(missMessages[getRandom(0, missMessages.length)], '#ff6e6e');
-    }
-  });
+  function onArenaTap(e) {
+    if (!gameActive) return;
+    if (e.target.closest('#dot') || e.target.closest('#gameover')) return;
+    clearTimeout(missTimeout);
+    clearTimeout(dotTimeout);
+    dot.style.display = 'none';
+    handleMiss();
+  }
+
+  arena.addEventListener('touchstart', onArenaTap, { passive: true });
+  arena.addEventListener('click', onArenaTap);
 
   startBtn.addEventListener('click', () => {
-    score = 0; streak = 0; windowMs = 1100;
+    ctx.resume();
+    score = 0; streak = 0; lives = 3; windowMs = 1100;
     scoreEl.textContent = 0;
     streakEl.textContent = 0;
     streakBadge.style.display = 'none';
     msgEl.textContent = '';
+    gameoverEl.classList.remove('show');
+    updateLives();
     gameActive = true;
     startBtn.textContent = 'reset 🔁';
     clearTimeout(dotTimeout);
     clearTimeout(missTimeout);
     dotTimeout = setTimeout(placeDot, 500);
+  });
+
+  shareBtn.addEventListener('click', () => {
+    const text = `I scored ${score} on Tap or Flop 💀🎯 Can you beat me?`;
+    if (navigator.share) {
+      navigator.share({ title: 'Tap or Flop', text });
+    } else {
+      navigator.clipboard.writeText(text).then(() => flashMsg('copied! 📋', '#f7ff6e'));
+    }
   });
 </script>
 </body>
