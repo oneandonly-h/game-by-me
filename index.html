@@ -234,6 +234,8 @@
   <div id="streak-badge"></div>
 
 <script>
+  const GAME_URL = 'https://YOUR-USERNAME.github.io/game-by-me/';
+
   const dot         = document.getElementById('dot');
   const arena       = document.getElementById('arena');
   const scoreEl     = document.getElementById('score');
@@ -412,9 +414,10 @@
   shareBtn.addEventListener('click', () => {
     const text = `I scored ${score} on Tap or Flop 💀🎯 Can you beat me?`;
     if (navigator.share) {
-      navigator.share({ title: 'Tap or Flop', text });
+      navigator.share({ title: 'Tap or Flop', text, url: GAME_URL });
     } else {
-      navigator.clipboard.writeText(text).then(() => flashMsg('copied! 📋', '#f7ff6e'));
+      navigator.clipboard.writeText(text + '\n' + GAME_URL)
+        .then(() => flashMsg('copied! 📋', '#f7ff6e'));
     }
   });
 </script>
