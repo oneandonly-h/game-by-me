@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>tap or flop 💀</title>
+  <title>tap or flop </title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -191,13 +191,13 @@
   </style>
 </head>
 <body>
-  <h1>tap or flop 💀</h1>
+  <h1>tap or flop </h1>
   <div id="subtitle">reaction speed game</div>
 
   <div id="arena">
     <div id="dot" style="display:none"></div>
     <div id="gameover">
-      <h2>game over 💀</h2>
+      <h2>game over </h2>
       <div class="go-score" id="go-score"></div>
       <div class="go-best" id="go-best"></div>
       <button id="share-btn">share score 🔗</button>
@@ -227,6 +227,7 @@
     <span class="life" id="life1">❤️</span>
     <span class="life" id="life2">❤️</span>
     <span class="life" id="life3">❤️</span>
+    <span class="life" id="life4">❤️</span>
   </div>
 
   <div id="message"></div>
@@ -249,14 +250,16 @@
   const goScore     = document.getElementById('go-score');
   const goBest      = document.getElementById('go-best');
   const shareBtn    = document.getElementById('share-btn');
-  const lifeEls     = [document.getElementById('life1'), document.getElementById('life2'), document.getElementById('life3')];
+  const lifeEls     = [document.getElementById('life1'), document.getElementById('life2'), document.getElementById('life3'), document.getElementById('life4')];
+
+  const MAX_LIVES = 4;
 
   const emojis       = ['🎯','⚡','💥','🔥','✨','🫧','👾','💎','🍄','🌀'];
   const colors       = ['#ff6ef7','#6ef7ff','#f7ff6e','#ff9f6e','#6eff9f','#b06eff'];
   const hitMessages  = ['slay 💅','no cap 🔥','ate that 🍽️','period.','understood the assignment','ok bestie','W hit ✅','lowkey goated'];
-  const missMessages = ['bruh 💀','not you flopping','ratio ❌','skill issue fr','down bad rn','L moment','GG'];
+  const missMessages = ['GG','not you flopping','ratio ❌','skill issue fr','down bad rn','L moment'];
 
-  let score = 0, streak = 0, lives = 3, gameActive = false;
+  let score = 0, streak = 0, lives = MAX_LIVES, gameActive = false;
   let dotTimeout, missTimeout;
   let windowMs = 1100;
 
@@ -397,7 +400,7 @@
 
   startBtn.addEventListener('click', () => {
     ctx.resume();
-    score = 0; streak = 0; lives = 3; windowMs = 1100;
+    score = 0; streak = 0; lives = MAX_LIVES; windowMs = 1100;
     scoreEl.textContent = 0;
     streakEl.textContent = 0;
     streakBadge.style.display = 'none';
