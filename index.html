@@ -260,6 +260,7 @@
   const missMessages = ['GG','not you flopping','ratio ❌','skill issue fr','down bad rn','L moment'];
 
   let score = 0, streak = 0, lives = MAX_LIVES, gameActive = false;
+  let dotActive = false; // is a dot currently live and tappable? (fixes phantom misses)
   let dotTimeout, missTimeout;
   let windowMs = 1100;
 
@@ -307,6 +308,7 @@
     dot.style.color      = color;
     dot.style.display    = 'flex';
     dot.textContent      = emojis[getRandom(0, emojis.length)];
+    dotActive = true;
     timerBar.style.transition = 'none';
     timerBar.style.width = '100%';
     setTimeout(() => {
@@ -314,13 +316,14 @@
       timerBar.style.width = '0%';
     }, 20);
     missTimeout = setTimeout(() => {
-      if (!gameActive) return;
+      if (!gameActive || !dotActive) return;
       dot.style.display = 'none';
       handleMiss();
     }, windowMs);
   }
 
   function handleMiss() {
+    dotActive = false;
     streak = 0;
     streakEl.textContent = 0;
     streakBadge.style.display = 'none';
@@ -337,6 +340,7 @@
 
   function endGame() {
     gameActive = false;
+    dotActive = false;
     dot.style.display = 'none';
     clearTimeout(dotTimeout);
     clearTimeout(missTimeout);
@@ -362,7 +366,8 @@
   function onDotTap(e) {
     e.preventDefault();
     e.stopPropagation();
-    if (!gameActive) return;
+    if (!gameActive || !dotActive) return;
+    dotActive = false;
     clearTimeout(missTimeout);
     clearTimeout(dotTimeout);
     score++;
@@ -383,24 +388,27 @@
     dotTimeout = setTimeout(placeDot, getRandom(250, Math.max(300, 700 - (score * 5))));
   }
 
-  dot.addEventListener('touchstart', onDotTap, { passive: false });
-  dot.addEventListener('click', onDotTap);
+  // pointerdown fires once per tap/click regardless of input type,
+  // so we no longer need separate touchstart + click listeners
+  // (that combo was causing a single mobile tap to fire this twice).
+  dot.addEventListener('pointerdown', onDotTap);
 
   function onArenaTap(e) {
     if (!gameActive) return;
     if (e.target.closest('#dot') || e.target.closest('#gameover')) return;
+    if (!dotActive) return; // nothing to miss if no dot is currently live
     clearTimeout(missTimeout);
     clearTimeout(dotTimeout);
     dot.style.display = 'none';
     handleMiss();
   }
 
-  arena.addEventListener('touchstart', onArenaTap, { passive: true });
-  arena.addEventListener('click', onArenaTap);
+  arena.addEventListener('pointerdown', onArenaTap);
 
   startBtn.addEventListener('click', () => {
     ctx.resume();
     score = 0; streak = 0; lives = MAX_LIVES; windowMs = 1100;
+    dotActive = false;
     scoreEl.textContent = 0;
     streakEl.textContent = 0;
     streakBadge.style.display = 'none';
