@@ -22,6 +22,7 @@
       justify-content: center;
       user-select: none;
       -webkit-user-select: none;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
     h1 {
       font-size: 2.2rem;
@@ -40,8 +41,8 @@
       text-transform: uppercase;
     }
     #arena {
-      width: 340px;
-      height: 340px;
+      width: min(340px, 82vw, 50vh);
+      height: min(340px, 82vw, 50vh);
       border: 2px solid #222;
       border-radius: 24px;
       position: relative;
@@ -92,7 +93,7 @@
     .life { transition: opacity 0.3s; }
     .life.lost { opacity: 0.15; }
     #timer-bar-wrap {
-      width: 340px;
+      width: min(340px, 82vw, 50vh);
       height: 6px;
       background: #222;
       border-radius: 99px;
@@ -188,6 +189,18 @@
       50%  { background: #3a0000; }
       100% { background: #0d0d0d; }
     }
+
+    /* Fix #4: tighten spacing on short/landscape viewports so nothing
+       gets clipped by the fixed-overflow-hidden body */
+    @media (max-height: 700px) {
+      h1 { font-size: 1.6rem; margin-bottom: 2px; }
+      #subtitle { margin-bottom: 12px; }
+      #stats { margin-top: 12px; }
+      #lives { margin-top: 6px; }
+      #message { margin-top: 8px; min-height: 20px; }
+      #start-btn { margin-top: 10px; padding: 8px 28px; }
+      #timer-bar-wrap { margin-top: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -230,12 +243,13 @@
     <span class="life" id="life4">❤️</span>
   </div>
 
-  <div id="message"></div>
+  <div id="message" aria-live="polite"></div>
   <button id="start-btn">let's go 🚀</button>
   <div id="streak-badge"></div>
 
 <script>
-  const GAME_URL = 'https://alammar-h.github.io/game-by-me/';
+  // Fix #1: corrected to the actual live URL
+  const GAME_URL = 'https://oneandonly-h.github.io/game-by-me/';
 
   const dot         = document.getElementById('dot');
   const arena       = document.getElementById('arena');
@@ -253,6 +267,8 @@
   const lifeEls     = [document.getElementById('life1'), document.getElementById('life2'), document.getElementById('life3'), document.getElementById('life4')];
 
   const MAX_LIVES = 4;
+  const MIN_WINDOW_MS = 480; // Fix #5: single consistent difficulty floor
+  const START_WINDOW_MS = 1100;
 
   const emojis       = ['🎯','⚡','💥','🔥','✨','🫧','👾','💎','🍄','🌀'];
   const colors       = ['#ff6ef7','#6ef7ff','#f7ff6e','#ff9f6e','#6eff9f','#b06eff'];
@@ -262,9 +278,19 @@
   let score = 0, streak = 0, lives = MAX_LIVES, gameActive = false;
   let dotActive = false; // is a dot currently live and tappable? (fixes phantom misses)
   let dotTimeout, missTimeout;
-  let windowMs = 1100;
+  let windowMs = START_WINDOW_MS;
 
-  let best = parseInt(localStorage.getItem('tof_best') || '0');
+  // Fix #3: localStorage can throw (private browsing / storage-blocked
+  // contexts), so reads/writes are wrapped and fall back gracefully.
+  function getBest() {
+    try { return parseInt(localStorage.getItem('tof_best') || '0', 10) || 0; }
+    catch (e) { return 0; }
+  }
+  function setBest(v) {
+    try { localStorage.setItem('tof_best', v); } catch (e) { /* ignore */ }
+  }
+
+  let best = getBest();
   bestEl.textContent = best;
 
   function getRandom(min, max) { return Math.floor(Math.random() * (max - min)) + min; }
@@ -273,27 +299,46 @@
     lifeEls.forEach((el, i) => el.classList.toggle('lost', i >= lives));
   }
 
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  // Fix #2: AudioContext is now created lazily on first use (typically
+  // the first hit/miss after Start is pressed), guarded with try/catch,
+  // instead of at parse time. Previously an unsupported/blocked
+  // AudioContext would throw at the top of the script and prevent every
+  // listener below it from ever being attached.
+  let ctx = null;
+  function getCtx() {
+    if (ctx) return ctx;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      ctx = null;
+    }
+    return ctx;
+  }
+
   function playHit() {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.setValueAtTime(520, ctx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(820, ctx.currentTime + 0.08);
-    g.gain.setValueAtTime(0.3, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    o.start(); o.stop(ctx.currentTime + 0.15);
+    const c = getCtx();
+    if (!c) return;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.frequency.setValueAtTime(520, c.currentTime);
+    o.frequency.exponentialRampToValueAtTime(820, c.currentTime + 0.08);
+    g.gain.setValueAtTime(0.3, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.15);
+    o.start(); o.stop(c.currentTime + 0.15);
   }
   function playMiss() {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
+    const c = getCtx();
+    if (!c) return;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.connect(g); g.connect(c.destination);
     o.type = 'sawtooth';
-    o.frequency.setValueAtTime(220, ctx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.2);
-    g.gain.setValueAtTime(0.3, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    o.start(); o.stop(ctx.currentTime + 0.2);
+    o.frequency.setValueAtTime(220, c.currentTime);
+    o.frequency.exponentialRampToValueAtTime(80, c.currentTime + 0.2);
+    g.gain.setValueAtTime(0.3, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.2);
+    o.start(); o.stop(c.currentTime + 0.2);
   }
 
   function placeDot() {
@@ -334,7 +379,7 @@
     document.body.classList.add('miss-flash');
     setTimeout(() => document.body.classList.remove('miss-flash'), 300);
     if (lives <= 0) { endGame(); return; }
-    windowMs = Math.max(500, windowMs - 20);
+    windowMs = Math.max(MIN_WINDOW_MS, windowMs - 20);
     dotTimeout = setTimeout(placeDot, getRandom(400, 900));
   }
 
@@ -347,7 +392,7 @@
     timerBar.style.width = '0%';
     if (score > best) {
       best = score;
-      localStorage.setItem('tof_best', best);
+      setBest(best);
       bestEl.textContent = best;
     }
     goScore.textContent = `your score: ${score}`;
@@ -374,7 +419,7 @@
     streak++;
     scoreEl.textContent = score;
     streakEl.textContent = streak;
-    if (score > best) { best = score; bestEl.textContent = best; localStorage.setItem('tof_best', best); }
+    if (score > best) { best = score; bestEl.textContent = best; setBest(best); }
     dot.classList.add('pop');
     setTimeout(() => dot.classList.remove('pop'), 250);
     dot.style.display = 'none';
@@ -384,7 +429,7 @@
       streakBadge.style.display = 'block';
     }
     flashMsg(hitMessages[getRandom(0, hitMessages.length)], '#6ef7ff');
-    windowMs = Math.max(480, windowMs - 25);
+    windowMs = Math.max(MIN_WINDOW_MS, windowMs - 25);
     dotTimeout = setTimeout(placeDot, getRandom(250, Math.max(300, 700 - (score * 5))));
   }
 
@@ -406,8 +451,8 @@
   arena.addEventListener('pointerdown', onArenaTap);
 
   startBtn.addEventListener('click', () => {
-    ctx.resume();
-    score = 0; streak = 0; lives = MAX_LIVES; windowMs = 1100;
+    getCtx()?.resume();
+    score = 0; streak = 0; lives = MAX_LIVES; windowMs = START_WINDOW_MS;
     dotActive = false;
     scoreEl.textContent = 0;
     streakEl.textContent = 0;
@@ -425,10 +470,11 @@
   shareBtn.addEventListener('click', () => {
     const text = `I scored ${score} on Tap or Flop 💀🎯 Can you beat me?`;
     if (navigator.share) {
-      navigator.share({ title: 'Tap or Flop', text, url: GAME_URL });
+      navigator.share({ title: 'Tap or Flop', text, url: GAME_URL }).catch(() => {});
     } else {
       navigator.clipboard.writeText(text + '\n' + GAME_URL)
-        .then(() => flashMsg('copied! 📋', '#f7ff6e'));
+        .then(() => flashMsg('copied! 📋', '#f7ff6e'))
+        .catch(() => flashMsg("couldn't copy 😬", '#ff6e6e'));
     }
   });
 </script>
